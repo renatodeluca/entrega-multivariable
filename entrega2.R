@@ -13,7 +13,7 @@ library(modeest)
 library(jtools)
 
 # cargar datos ----------------------------------
-datos <- read_sav("input/base-de-datos---enusc-2024.sav")
+datos <- read_sav("input/data/original/base-de-datos---enusc-2024.sav")
 options(scipen = 999)
 
 # filtrar informante Kish ----
@@ -64,14 +64,6 @@ proc_datos <- proc_datos %>%
 colSums(is.na(proc_datos))
 table(proc_datos$escala1_valida)
 
-#ver alpha de las escalas-------
-
-# alpha escala 1 (20 ítems)
-alpha(muestra %>% select(all_of(cols)))
-
-# alpha escala 2 (15 ítems)
-alpha(muestra %>% select(starts_with("P_DESORDENES_") | 
-                           starts_with("P_INCIVILIDADES_")))
 
 #limpiar datos para análisis --------
 proc_datos <- proc_datos %>%
@@ -92,6 +84,18 @@ nrow(proc_datos)
 set.seed(123)
 muestra <- proc_datos %>% sample_n(2500)
 nrow(muestra)
+
+
+#ver alpha de las escalas-------
+
+# alpha escala 1 (20 ítems)
+alpha(muestra %>% select(all_of(cols)))
+
+# alpha escala 2 (15 ítems)
+alpha(muestra %>% select(starts_with("P_DESORDENES_") | 
+                           starts_with("P_INCIVILIDADES_")))
+#alpha escala vulnerabilidad (5 ítems)
+alpha(muestra %>% select(rph_disc_a, rph_disc_b, rph_disc_c, rph_disc_d, rph_disc_f))
 
 # recodificaciones sobre la submuestra --------
 muestra <- muestra %>%
@@ -119,28 +123,24 @@ diseno_enusc <- svydesign(
 
 # descriptivos e histograma --------
 # variable dependiente
-svymean(~indice_inseg, diseno_enusc)
-svyquantile(~indice_inseg, diseno_enusc, quantiles = c(0.25, 0.5, 0.75))
-sqrt(svyvar(~indice_inseg, diseno_enusc))
+# continuas
+  #VARIABLE DEPENDIENTE
+summary(muestra$indice_inseg)
+sd(muestra$indice_inseg)
+  #PRESENCIA TRAFICO
+summary(muestra$PRESENCIA_TRAFICO)
+sd(muestra$PRESENCIA_TRAFICO)
 
-# variables independientes
-svytable(~rph_idgen, diseno_enusc)
-prop.table(svytable(~rph_idgen, diseno_enusc))
+# categóricas
+table(muestra$rph_idgen)
+prop.table(table(muestra$rph_idgen)) * 100
 
-svytable(~rph_nivel, diseno_enusc)
-prop.table(svytable(~rph_nivel, diseno_enusc))
+table(muestra$rph_nivel)
+prop.table(table(muestra$rph_nivel)) * 100
 
-svymean(~vulnerable, diseno_enusc)
-svytable(~vulnerable, diseno_enusc)
-
-svymean(~fuente_personal, diseno_enusc)
-svytable(~fuente_personal, diseno_enusc)
-
-svytable(~PRESENCIA_TRAFICO, diseno_enusc)
-prop.table(svytable(~PRESENCIA_TRAFICO, diseno_enusc))
-svymean(~PRESENCIA_TRAFICO, diseno_enusc)
-sqrt(svyvar(~PRESENCIA_TRAFICO, diseno_enusc))
-
+# dicotómicas
+prop.table(table(muestra$vulnerable)) * 100
+prop.table(table(muestra$fuente_personal)) * 100
 # histograma --------
 svyhist(~indice_inseg, diseno_enusc,
         breaks = 20,
