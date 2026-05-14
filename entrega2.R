@@ -1,5 +1,6 @@
 #Amaya Barbet, Renato De Luca y Tomás Gonzalez
 #entrega grupal multivariable nº1
+
 # Carga de paquetes --------
 library(haven)
 library(survey)
@@ -9,9 +10,12 @@ library(effectsize)
 library(parameters)
 library(dplyr)
 library(modeest)
+library(jtools)
+
 # cargar datos ----------------------------------
 datos <- read_sav("input/base-de-datos---enusc-2024.sav")
 options(scipen = 999)
+
 # filtrar informante Kish ----
 base_kish <- datos %>% filter(Kish == 1)
 
@@ -19,8 +23,8 @@ base_kish <- datos %>% filter(Kish == 1)
 proc_datos <- dplyr::select(base_kish,
                             Conglomerado, VarStrat, Fact_Pers_Reg,
                             P_INSEG_LUGARES_1, P_INSEG_LUGARES_2, P_INSEG_LUGARES_3, P_INSEG_LUGARES_4,
-                            P_INSEG_LUGARES_5, P_INSEG_LUGARES_6, P_INSEG_LUGARES_7, P_INSEG_LUGARES_8,P_INSEG_LUGARES_9, 
-                            P_INSEG_LUGARES_10, P_INSEG_LUGARES_11, P_INSEG_LUGARES_12,
+                            P_INSEG_LUGARES_5, P_INSEG_LUGARES_6, P_INSEG_LUGARES_7, P_INSEG_LUGARES_8,
+                            P_INSEG_LUGARES_9, P_INSEG_LUGARES_10, P_INSEG_LUGARES_11, P_INSEG_LUGARES_12,
                             P_INSEG_LUGARES_13, P_INSEG_LUGARES_14, P_INSEG_LUGARES_15, P_INSEG_LUGARES_16,
                             P_INSEG_OSCURO_1, P_INSEG_DIA_1, P_INSEG_OSCURO_2, P_INSEG_DIA_2,
                             P_DESORDENES_1, P_DESORDENES_2, P_DESORDENES_3, P_DESORDENES_4,
@@ -36,10 +40,13 @@ proc_datos <- proc_datos %>%
                 ~ ifelse(. %in% c(77, 85, 88, 99), NA, .)),
          PRESENCIA_TRAFICO = ifelse(PRESENCIA_TRAFICO %in% c(88, 99), NA, PRESENCIA_TRAFICO),
          rph_idgen = ifelse(rph_idgen %in% c(88, 96, 99), NA, rph_idgen),
-         rph_nivel = ifelse(rph_nivel %in% c(88, 99), NA, rph_nivel))
+         rph_nivel = ifelse(rph_nivel %in% c(0,88, 99), NA, rph_nivel))
 
 # crear escalas ----------------
-cols <- paste0("P_INSEG_LUGARES_", 1:16)
+cols <- c(paste0("P_INSEG_LUGARES_", 1:16),
+          "P_INSEG_OSCURO_1", "P_INSEG_DIA_1",
+          "P_INSEG_OSCURO_2", "P_INSEG_DIA_2")
+
 proc_datos <- proc_datos %>%
   mutate(
     escala1_n = rowSums(!is.na(across(all_of(cols)))),
@@ -53,11 +60,22 @@ proc_datos <- proc_datos %>%
                                 starts_with("P_INCIVILIDADES_")), na.rm = FALSE),
     escala_vulfis = rowMeans(select(., rph_disc_a, rph_disc_b, rph_disc_c,
                                     rph_disc_d, rph_disc_f), na.rm = FALSE))
+
 colSums(is.na(proc_datos))
 table(proc_datos$escala1_valida)
 
+#ver alpha de las escalas-------
+
+# alpha escala 1 (20 ítems)
+alpha(muestra %>% select(all_of(cols)))
+
+# alpha escala 2 (15 ítems)
+alpha(muestra %>% select(starts_with("P_DESORDENES_") | 
+                           starts_with("P_INCIVILIDADES_")))
+
+#limpiar datos para análisis --------
 proc_datos <- proc_datos %>%
-  select(-escala1_n, -escala1_valida) %>%   # sacar columnas auxiliares
+  select(-escala1_n, -escala1_valida) %>%
   filter(
     !is.na(escala1),
     !is.na(escala2),
@@ -70,12 +88,12 @@ proc_datos <- proc_datos %>%
 
 nrow(proc_datos)
 
-#submuestra 2500 casos
-set.seed(123) # para reproducibilidad
+# submuestra 2500 casos --------
+set.seed(123)
 muestra <- proc_datos %>% sample_n(2500)
 nrow(muestra)
 
-#recodificaciones sobre la submuestra
+# recodificaciones sobre la submuestra --------
 muestra <- muestra %>%
   mutate(
     escala1_norm = (4 - escala1) / 3,
@@ -90,7 +108,7 @@ muestra <- muestra %>%
                        levels = c(3, 1, 2),
                        labels = c("Superior", "Basica", "Media")))
 
-# declaar el diseño complejo con los datos ya limpios
+# declarar diseño complejo --------
 options(survey.lonely.psu = "adjust")
 diseno_enusc <- svydesign(
   id      = ~Conglomerado,
@@ -99,94 +117,61 @@ diseno_enusc <- svydesign(
   data    = muestra,
   nest    = TRUE)
 
-
-#descriptivos e histograma---------
-      #descriptivos 
-         #variable dependiente
+# descriptivos e histograma --------
+# variable dependiente
 svymean(~indice_inseg, diseno_enusc)
 svyquantile(~indice_inseg, diseno_enusc, quantiles = c(0.25, 0.5, 0.75))
 sqrt(svyvar(~indice_inseg, diseno_enusc))
-         #variables independientes
-          # Género (categórica nominal)
+
+# variables independientes
 svytable(~rph_idgen, diseno_enusc)
 prop.table(svytable(~rph_idgen, diseno_enusc))
 
-# Nivel educacional (categórica ordinal)
 svytable(~rph_nivel, diseno_enusc)
 prop.table(svytable(~rph_nivel, diseno_enusc))
 
-# Vulnerabilidad física (dicotómica)
 svymean(~vulnerable, diseno_enusc)
 svytable(~vulnerable, diseno_enusc)
 
-# Fuente de información (dicotómica)
 svymean(~fuente_personal, diseno_enusc)
 svytable(~fuente_personal, diseno_enusc)
 
-# Exposición a drogas (ordinal)
 svytable(~PRESENCIA_TRAFICO, diseno_enusc)
 prop.table(svytable(~PRESENCIA_TRAFICO, diseno_enusc))
 svymean(~PRESENCIA_TRAFICO, diseno_enusc)
 sqrt(svyvar(~PRESENCIA_TRAFICO, diseno_enusc))
 
+# histograma --------
+svyhist(~indice_inseg, diseno_enusc,
+        breaks = 20,
+        col = "#fcba03",
+        main = "Índice de percepción de inseguridad",
+        xlab = "Puntaje")
 
-
-
-
-
-
-
-
-
-
-
-#histograma
-hist(muestra$indice_inseg,
-     breaks = 20,
-     col = "#fcba03",
-     main = "Índice de percepción de inseguridad",
-     xlab = "Puntaje")
-
-#exportar histograma a imagen png
-png("output/indice_inseg.png")
-hist(
-  muestra$indice_inseg,
-  breaks = 20,
-  col = "#fcba03",
-  main = "Índice de percepción de inseguridad",
-  xlab = "Puntaje")
+png("output/graphs/hist_indice_inseg.png")
+svyhist(~indice_inseg, diseno_enusc,
+        breaks = 20,
+        col = "#fcba03",
+        main = "Índice de percepción de inseguridad",
+        xlab = "Puntaje")
 dev.off()
-# bivariados ------------
 
-# género
-modelo_genero <- lm(indice_inseg ~ rph_idgen, data = muestra)
+# bivariados --------
+modelo_genero <- svyglm(indice_inseg ~ rph_idgen, design = diseno_enusc)
 summary(modelo_genero)
 
-standardize_parameters(modelo_genero)
-
-#vulnerabilidad física
-modelo_vulfis <- lm(indice_inseg ~ vulnerable, data = muestra)
+modelo_vulfis <- svyglm(indice_inseg ~ vulnerable, design = diseno_enusc)
 summary(modelo_vulfis)
-standardize_parameters(modelo_vulfis)
 
-#nivel educacional (ref = Superior)
-modelo_educ <- lm(indice_inseg ~ rph_nivel, data = muestra)
+modelo_educ <- svyglm(indice_inseg ~ rph_nivel, design = diseno_enusc)
 summary(modelo_educ)
-standardize_parameters(modelo_educ)
 
-#fuente de información
-t.test(indice_inseg ~ fuente_personal, data = muestra %>% filter(!is.na(fuente_personal)))
-muestra %>%
-  filter(!is.na(fuente_personal)) %>%
-  group_by(fuente_personal) %>%
-  summarise(media = mean(indice_inseg, na.rm = TRUE),
-            sd = sd(indice_inseg, na.rm = TRUE),
-            n = n())
-cohens_d(indice_inseg ~ fuente_personal, data = muestra %>% filter(!is.na(fuente_personal)))
-# Exposición a drogas
-cor.test(muestra$PRESENCIA_TRAFICO, muestra$indice_inseg, method = "pearson")
+modelo_fuente <- svyglm(indice_inseg ~ fuente_personal, design = diseno_enusc)
+summary(modelo_fuente)
 
+svyby(~indice_inseg, ~fuente_personal, diseno_enusc, svymean)
 
-#guardar base de datos —-----------------
-write_sav(muestra, "Grupo_Iota.sav")
+svycor(~indice_inseg + PRESENCIA_TRAFICO, diseno_enusc, sig.stats = TRUE)
 
+#guardar base
+saveRDS(muestra, "input/data/proc/muestra_procesada.rds")
