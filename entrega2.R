@@ -19,8 +19,7 @@ base_kish <- datos %>% filter(Kish == 1)
 proc_datos <- dplyr::select(base_kish,
                             Conglomerado, VarStrat, Fact_Pers_Reg,
                             P_INSEG_LUGARES_1, P_INSEG_LUGARES_2, P_INSEG_LUGARES_3, P_INSEG_LUGARES_4,
-                            P_INSEG_LUGARES_5, P_INSEG_LUGARES_7, P_INSEG_LUGARES_8,
-                            P_INSEG_LUGARES_5, P_INSEG_LUGARES_6, P_INSEG_LUGARES_7, P_INSEG_LUGARES_9, 
+                            P_INSEG_LUGARES_5, P_INSEG_LUGARES_6, P_INSEG_LUGARES_7, P_INSEG_LUGARES_8,P_INSEG_LUGARES_9, 
                             P_INSEG_LUGARES_10, P_INSEG_LUGARES_11, P_INSEG_LUGARES_12,
                             P_INSEG_LUGARES_13, P_INSEG_LUGARES_14, P_INSEG_LUGARES_15, P_INSEG_LUGARES_16,
                             P_INSEG_OSCURO_1, P_INSEG_DIA_1, P_INSEG_OSCURO_2, P_INSEG_DIA_2,
@@ -55,24 +54,28 @@ proc_datos <- proc_datos %>%
     escala_vulfis = rowMeans(select(., rph_disc_a, rph_disc_b, rph_disc_c,
                                     rph_disc_d, rph_disc_f), na.rm = FALSE))
 colSums(is.na(proc_datos))
+table(proc_datos$escala1_valida)
 
-nrow(proc_datos)  # filas antes
-proc_datos <- na.omit(proc_datos)
-nrow(proc_datos)  # filas después
+proc_datos <- proc_datos %>%
+  select(-escala1_n, -escala1_valida) %>%   # sacar columnas auxiliares
+  filter(
+    !is.na(escala1),
+    !is.na(escala2),
+    !is.na(escala_vulfis),
+    !is.na(rph_idgen),
+    !is.na(rph_nivel),
+    !is.na(PRESENCIA_TRAFICO),
+    !is.na(P_FUENTE_INFO_PAIS_1)
+  )
 
+nrow(proc_datos)
 
-#declarar diseño complejo --------
-options(survey.lonely.psu = "adjust")
-diseno_enusc <- svydesign(
-  id      = ~Conglomerado,
-  strata  = ~VarStrat,
-  weights = ~Fact_Pers_Reg,
-  data    = muestra,
-  nest    = TRUE)
+#submuestra 2500 casos
+set.seed(123) # para reproducibilidad
+muestra <- proc_datos %>% sample_n(2500)
+nrow(muestra)
 
-# crear índice y recodificaciones -----
-muestra <- proc_datos %>% filter(escala1_valida)
-
+#recodificaciones sobre la submuestra
 muestra <- muestra %>%
   mutate(
     escala1_norm = (4 - escala1) / 3,
@@ -85,13 +88,57 @@ muestra <- muestra %>%
                        labels = c("Mujer", "Hombre", "Trans")),
     rph_nivel = factor(rph_nivel,
                        levels = c(3, 1, 2),
-                       labels = c("Superior", "Basica", "Media"))
-  )
+                       labels = c("Superior", "Basica", "Media")))
+
+# declaar el diseño complejo con los datos ya limpios
+options(survey.lonely.psu = "adjust")
+diseno_enusc <- svydesign(
+  id      = ~Conglomerado,
+  strata  = ~VarStrat,
+  weights = ~Fact_Pers_Reg,
+  data    = muestra,
+  nest    = TRUE)
+
 
 #descriptivos e histograma---------
-describe(muestra$indice_inseg) #descriptivos variable dependiente
+      #descriptivos 
+         #variable dependiente
+svymean(~indice_inseg, diseno_enusc)
+svyquantile(~indice_inseg, diseno_enusc, quantiles = c(0.25, 0.5, 0.75))
+sqrt(svyvar(~indice_inseg, diseno_enusc))
+         #variables independientes
+          # Género (categórica nominal)
+svytable(~rph_idgen, diseno_enusc)
+prop.table(svytable(~rph_idgen, diseno_enusc))
 
-mfv(muestra$indice_inseg) #moda variable dependiente
+# Nivel educacional (categórica ordinal)
+svytable(~rph_nivel, diseno_enusc)
+prop.table(svytable(~rph_nivel, diseno_enusc))
+
+# Vulnerabilidad física (dicotómica)
+svymean(~vulnerable, diseno_enusc)
+svytable(~vulnerable, diseno_enusc)
+
+# Fuente de información (dicotómica)
+svymean(~fuente_personal, diseno_enusc)
+svytable(~fuente_personal, diseno_enusc)
+
+# Exposición a drogas (ordinal)
+svytable(~PRESENCIA_TRAFICO, diseno_enusc)
+prop.table(svytable(~PRESENCIA_TRAFICO, diseno_enusc))
+svymean(~PRESENCIA_TRAFICO, diseno_enusc)
+sqrt(svyvar(~PRESENCIA_TRAFICO, diseno_enusc))
+
+
+
+
+
+
+
+
+
+
+
 
 #histograma
 hist(muestra$indice_inseg,
