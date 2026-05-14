@@ -20,8 +20,9 @@ proc_datos <- dplyr::select(base_kish,
                             Conglomerado, VarStrat, Fact_Pers_Reg,
                             P_INSEG_LUGARES_1, P_INSEG_LUGARES_2, P_INSEG_LUGARES_3, P_INSEG_LUGARES_4,
                             P_INSEG_LUGARES_5, P_INSEG_LUGARES_7, P_INSEG_LUGARES_8,
+                            P_INSEG_LUGARES_5, P_INSEG_LUGARES_6, P_INSEG_LUGARES_7, P_INSEG_LUGARES_9, 
                             P_INSEG_LUGARES_10, P_INSEG_LUGARES_11, P_INSEG_LUGARES_12,
-                            P_INSEG_LUGARES_13, P_INSEG_LUGARES_14, P_INSEG_LUGARES_16,
+                            P_INSEG_LUGARES_13, P_INSEG_LUGARES_14, P_INSEG_LUGARES_15, P_INSEG_LUGARES_16,
                             P_INSEG_OSCURO_1, P_INSEG_DIA_1, P_INSEG_OSCURO_2, P_INSEG_DIA_2,
                             P_DESORDENES_1, P_DESORDENES_2, P_DESORDENES_3, P_DESORDENES_4,
                             P_DESORDENES_5, P_DESORDENES_6, P_DESORDENES_7, P_DESORDENES_8,
@@ -39,14 +40,20 @@ proc_datos <- proc_datos %>%
          rph_nivel = ifelse(rph_nivel %in% c(88, 99), NA, rph_nivel))
 
 # crear escalas ----------------
+cols <- paste0("P_INSEG_LUGARES_", 1:16)
 proc_datos <- proc_datos %>%
   mutate(
-    escala1 = rowMeans(select(., starts_with("P_INSEG")), na.rm = FALSE),
-    escala2 = rowMeans(select(., starts_with("P_DESORDENES") | 
-                                starts_with("P_INCIVILIDADES")), na.rm = FALSE),
+    escala1_n = rowSums(!is.na(across(all_of(cols)))),
+    escala1_valida = escala1_n >= ceiling(length(cols) / 3),
+    escala1 = if_else(
+      escala1_valida,
+      rowMeans(across(all_of(cols)), na.rm = TRUE),
+      NA_real_
+    ),
+    escala2 = rowMeans(select(., starts_with("P_DESORDENES_") |
+                                starts_with("P_INCIVILIDADES_")), na.rm = FALSE),
     escala_vulfis = rowMeans(select(., rph_disc_a, rph_disc_b, rph_disc_c,
                                     rph_disc_d, rph_disc_f), na.rm = FALSE))
-
 colSums(is.na(proc_datos))
 
 nrow(proc_datos)  # filas antes
@@ -64,11 +71,13 @@ diseno_enusc <- svydesign(
   nest    = TRUE)
 
 # crear índice y recodificaciones -----
+muestra <- proc_datos %>% filter(escala1_valida)
+
 muestra <- muestra %>%
   mutate(
-    escala1_norm  = (4 - escala1) / (4 - 1),
-    escala2_norm  = (escala2 - 1) / (5 - 1),
-    indice_inseg  = ((escala1_norm + escala2_norm) / 2) * 100,
+    escala1_norm = (4 - escala1) / 3,
+    escala2_norm = (escala2 - 1) / 4,
+    indice_inseg = ((escala1_norm + escala2_norm) / 2) * 100,
     fuente_personal = ifelse(P_FUENTE_INFO_PAIS_1 == 1, 1, 0),
     vulnerable = ifelse(escala_vulfis > 1, 1, 0),
     rph_idgen = factor(rph_idgen,
@@ -76,8 +85,8 @@ muestra <- muestra %>%
                        labels = c("Mujer", "Hombre", "Trans")),
     rph_nivel = factor(rph_nivel,
                        levels = c(3, 1, 2),
-                       labels = c("Superior", "Basica", "Media")))
-
+                       labels = c("Superior", "Basica", "Media"))
+  )
 
 #descriptivos e histograma---------
 describe(muestra$indice_inseg) #descriptivos variable dependiente
