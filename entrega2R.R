@@ -2,7 +2,7 @@
 #entrega grupal multivariable nº1
 
 # Carga de paquetes --------
-install.pacakges("lm.beta")
+install.packages("lm.beta")
 library(haven)
 library(survey)
 library(ggplot2)
@@ -14,7 +14,8 @@ library(modeest)
 library(jtools)
 library(lm.beta)
 # cargar datos ----------------------------------
-datos <- read_sav("input/data/original/base-de-datos---enusc-2024.sav")
+datos <- read_sav("entrega-multivariable-main/input/data/original/base-de-datos---enusc-2024.sav")
+
 options(scipen = 999)
 
 # filtrar informante Kish ----
@@ -173,26 +174,11 @@ summary(lm.beta(m2))
 summary(lm.beta(m3))
 
 
-
-## Funcion para estandarizar coeficientes
-obtener_coef_estandarizados <-
-  function(model) {
-    coef <- model$coefficients[-1]
-    sd_ <- sapply(model$model, sd)
-    sd_ind <- sd_[-1]
-    sd_dep <- sd_[1]
-    coef_estandarizados <- coef * sd_ind / sd_dep
-    return(coef_estandarizados)}
-
-# coeficientes estandarizados
-
-obtener_coef_estandarizados(m1)
-obtener_coef_estandarizados(m2)
-obtener_coef_estandarizados(m3)
-# R estandarizado 
+# R estandarizado y b std 
 
 summ(m1, scale = TRUE, transform.response = TRUE, digits = 3)
 summ(m2, scale = TRUE, transform.response = TRUE, digits = 3)
 summ(m3, scale = TRUE, transform.response = TRUE, digits = 3)
 # R de pearson para modelo 3 
 sqrt(0.294)
+
