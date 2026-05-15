@@ -189,4 +189,10 @@ obtener_coef_estandarizados <-
 obtener_coef_estandarizados(m1)
 obtener_coef_estandarizados(m2)
 obtener_coef_estandarizados(m3)
+# R estandarizado 
 
+summ(m1, scale = TRUE, transform.response = TRUE, digits = 3)
+summ(m2, scale = TRUE, transform.response = TRUE, digits = 3)
+summ(m3, scale = TRUE, transform.response = TRUE, digits = 3)
+# R de pearson para modelo 3 
+sqrt(0.294)
