@@ -14,7 +14,7 @@ library(modeest)
 library(jtools)
 library(lm.beta)
 # cargar datos ----------------------------------
-datos <- read_sav("entrega-multivariable-main/input/data/original/base-de-datos---enusc-2024.sav")
+datos <- read_sav("/input/data/original/base-de-datos---enusc-2024.sav")
 
 options(scipen = 999)
 
