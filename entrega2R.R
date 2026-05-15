@@ -135,12 +135,15 @@ dev.off()
 # bivariados --------
 modelo_genero <- svyglm(indice_inseg ~ rph_idgen, design = diseno_enusc)
 summary(modelo_genero)
+summ(modelo_genero, scale = TRUE, transform.response = TRUE, digits = 3)
 
 modelo_vulfis <- svyglm(indice_inseg ~ vulnerable, design = diseno_enusc)
 summary(modelo_vulfis)
+summ(modelo_vulfis, scale = TRUE, transform.response = TRUE, digits = 3)
 
 modelo_educ <- svyglm(indice_inseg ~ rph_nivel, design = diseno_enusc)
 summary(modelo_educ)
+summ(modelo_educ, scale = TRUE, transform.response = TRUE, digits = 3)
 
 modelo_fuente <- svyglm(indice_inseg ~ fuente_personal, design = diseno_enusc)
 summary(modelo_fuente)
@@ -174,7 +177,7 @@ summary(lm.beta(m2))
 summary(lm.beta(m3))
 
 
-# R estandarizado y b std 
+# R ajustado y b std 
 
 summ(m1, scale = TRUE, transform.response = TRUE, digits = 3)
 summ(m2, scale = TRUE, transform.response = TRUE, digits = 3)
